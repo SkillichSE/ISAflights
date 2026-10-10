@@ -7,7 +7,7 @@ local CONFIG = {
   ATT_KI = 0.10, ATT_KI_C = 0.30, ATT_IMAX = 0.08, ATT_I_ERR = 0.07,
   GIM_SHARE = 0.9, GIM_ON = true,
  
-  RCS_SIGN_F = 1, RCS_SIGN_R = 1, GIM_SIGN_F = 1, GIM_SIGN_R = 1, -- signs from calibration (F/R axes swapped in attitude())
+  RCS_SIGN_F = 1, RCS_SIGN_R = 1, GIM_SIGN_F = 1, GIM_SIGN_R = 1, -- signs
   
   FINE_MID = 4, MIN_FINE = 1,
   VS_KP = 2.5, TRIM_KI = 0.25, TRIM_LIM = 2,
@@ -30,20 +30,18 @@ local CONFIG = {
   ML_NEAR2 = 0.06,
   GLIDE_SLOPE = 0, GLIDE_R0 = 3,
   TILT_SAFE = 15, TILT_THR = 15, TILT_THR_W = 20,
-  -- GLIDE_NAV_KP > 0.25 makes the tilt oscillate
-  GLIDE_VS = 40, GLIDE_GATE = 700, GLIDE_KP = 1.5, GLIDE_LEAN = 0.15, GLIDE_NAV_KP = 0.25, GLIDE_LAG = 1.5, GLIDE_TMIN = 2.5, GLIDE_VW_RATE = 3, -- GLIDE_NAV_KP > 0.25 makes the tilt oscillate
+  GLIDE_VS = 40, GLIDE_GATE = 700, GLIDE_KP = 1.5, GLIDE_LEAN = 0.15, GLIDE_NAV_KP = 0.25, GLIDE_LAG = 1.5, GLIDE_TMIN = 2.5, GLIDE_VW_RATE = 3,
   CRUISE_A = 5, CRUISE_LEAN = 0.10, NAV_MAX = 40, NAV_KP = 1.0, NAV_PK = 0.65,
   NAV_DEAD = 0.6, ALT_BURN_EST = 600, NAV_WARN = 600,
   LOG_BUDGET = 600000, STALE_LOOPS = 15, STALE_ABORT = 80,
   FLOOR_EV0 = 1.0, FLOOR_EV_K = 0.15, FLOOR_MIN_K = 0.4, FLOOR_RELAX_ALT = 25,
   A_FLOOR = 0.6, A_FALL = 30, VS_KP_DOWN = 1.0, FLOOR_ALT = 200,
-  -- arms: ARMS_CLOSE is sent once, after CLAMP_T seconds the signal is cancelled (ARMS_OPEN, 0), no resends
   ARMS_CLOSE = 15, ARMS_OPEN = 0,
   ROLL_ON = true, ROLL_HOLD = false,
-  ENTRY_DIR = { x = 0.227, z = 0.974 }, -- from the catch point to the free side, away from the tower
-  ARMS_DIR = { x = -0.227, z = -0.974 }, -- from the catch point toward the arms (x east+, z south+)
-  LIME_AXIS = "R", LIME_SIGN = 1, -- lime_wool axis in body frame: "R" or "F", sign 1 or -1
-  ROLL_OFFSET = 251.5, -- yellow to the arms (checked by the catch_sh.log test: 71.5 put orange to the arms, +180 = 251.5 puts yellow). gridfins are on the lime/green sides
+  ENTRY_DIR = { x = 0.227, z = 0.974 }, -- from the catch point to the free side
+  ARMS_DIR = { x = -0.227, z = -0.974 }, -- x east+, z south+
+  LIME_AXIS = "R", LIME_SIGN = 1,
+  ROLL_OFFSET = 251.5, 
   ROLL_SIGN = 1, -- -1 if roll turns the wrong way
   ROLL_KP = 0.3, ROLL_KD = 0.6, ROLL_K = 60, ROLL_MAX = 8, ROLL_DEAD = 2, ROLL_MIN = 1,
   ROLL_ALT_MAX = 1200, ROLL_ALT_MIN = 3, ROLL_TILT_MAX = 12,
@@ -54,9 +52,9 @@ local CONFIG = {
   SLIDE_ON = false, STAND_OFF = 12, SLIDE_ALT = 3, SLIDE_V = 1.0, STAND_XZ = 2.0, STAND_VH = 1.0,
   A_CAP_G = 1.35, A_CAP_ALT = 250,
   A_PROF = 2.5, PROF_TAU_LOW = 3,
-  KEEP_R = 8, KEEP_LAG = 3.0, BODY_CLEAR = 90, -- BODY_CLEAR: booster bottom hangs ~69 m below the pins
+  KEEP_R = 8, KEEP_LAG = 3.0, BODY_CLEAR = 90,
   POS_ROT_ALT = 30,
-  GLIDE_TAPER_T = 6.0, GLIDE_TAPER_MIN = 0.4, -- was a hardcoded 0.25: too little lean authority left to remove a 4 m offset before the burn
+  GLIDE_TAPER_T = 6.0, GLIDE_TAPER_MIN = 0.4, 
   GLIDE_FF = 1.0,
   DFF_MAX = 0.05,
   GROUND_ALT = 15, GROUND_CAP_G = 1.05, TRIM_GROUND = 0.2,
@@ -75,7 +73,6 @@ local G = {
 }
 G.MAIN = G.FINE
 local L = {
-  -- eng_a is prismarine_bricks; the old prismarine_slab frequency is never sent
   eng_a = { "minecraft:prismarine_bricks", "minecraft:prismarine_bricks" },
   eng_b = { "minecraft:prismarine", "minecraft:prismarine" },
   gim_n = { "minecraft:short_grass", "minecraft:short_grass" },
@@ -89,9 +86,8 @@ local L = {
   roll_cw  = { "simulated:spring", "simulated:spring" }, -- clockwise
   roll_ccw = { "simulated:contraption_diagram", "dndecor:andesite_sheet_metal" }, -- counterclockwise
 }
--- arms are not in table L so allZero()/flush() don't release them
+
 local ARMS = { "minecraft:stone", "minecraft:stone" }
--- Not used in landing, kept as constants
 local ENG_UNUSED = {
   outer  = { "minecraft:prismarine_wall", "minecraft:prismarine_wall" }, -- 22 outer engines, no gimbal: liftoff + boostback
   bricks = { "minecraft:prismarine_bricks", "minecraft:prismarine_bricks" }, -- liftoff, hotstage, boostback
