@@ -3,7 +3,7 @@ local CONFIG = {
   GRAVITY = 11,
   THRUST_MULT = 5.6, ADAPT = true, ADAPT_K = 0.03, KT_MIN = 2.0, KT_MAX = 10,
   DRAG_K = 0.0004,
-  KP = 0.45, KD = 1.1, RATE_SMOOTH = 0.7, MAIN_K = 1.4,
+  KP = 1.0, KD = 1.6, KFV = 0.6, RATE_SMOOTH = 0.7, MAIN_K = 1.4,
   ATT_KI = 0.10, ATT_KI_C = 0.30, ATT_IMAX = 0.08, ATT_I_ERR = 0.07,
   GIM_SHARE = 0.9, GIM_ON = true,
  
@@ -14,47 +14,47 @@ local CONFIG = {
   A_LAND_FRAC = 0.55, A_LAND_MAX = 8, LAND_MARGIN = 1.3, A_RISE = 40, BURN_LAG = 2.0,
  
   TOUCH_VS = 1.5, MAX_DESC = 200,
-  HOLD_ALT = 0, HOLD_RATE = 6.0, A_FINAL = 2.5, FINAL_VS = 3.0, ML_NEAR = 0.05,
+  HOLD_ALT = 0, HOLD_RATE = 6.0, A_FINAL = 2.5, FINAL_VS = 3.0, ML_NEAR = 0.07,
   HOLD_MAX = 60, COMMIT_ALT = 2, COMMIT_BODY = 78,
-  BRAKE_FRAC = 1.3, BRAKE_LAG = 3.5,
-  CATCH_XZ = 2, CATCH_VH = 1.2, EXIT_XZ = 4, SIDE_OFF = 5.5, CLAMP_ALT = 25, CLAMP_XZ = 1.5, CLAMP_T = 3.0, THRUST_RAMP = 3.5, EXIT_VH = 2.5, REST_T = 2.0, REST_VS = 0.05, REST_G = 0.95, CATCH_TILT = 3,
-  CUT_ALT = 0.4, MISS_XZ = 5,
+  BRAKE_FRAC = 1.3, BRAKE_LAG = 2.5,
+  CATCH_XZ = 2, CATCH_VH = 1.2, EXIT_XZ = 4, SIDE_OFF = 5.5, CLAMP_ALT = 25, CLAMP_XZ = 1.5, CLAMP_START_XZ = 4.5, CLAMP_T = 2.0, CLAMP_LEAD = 0.5, THRUST_RAMP = 3.5, EXIT_VH = 2.5, REST_T = 2.0, REST_VS = 0.05, REST_G = 0.95, CATCH_TILT = 3,
+  CUT_ALT = 0.4, MISS_XZ = 6.5,
   STILL_ALT = 1.5, STILL_ALT_ARMS = 8, STILL_VS = 0.25, STILL_T = 1.0, IMPACT_ACC = 120,
-  NAV_ALT_K = 0.1, EG_TMIN = 6, NAV_RAMP = 0.5,
-  ML_BASE = 0.08, ML_MIN = 0.13, MAX_LEAN = 0.15, LEAN_SLEW = 0.15,
+  NAV_ALT_K = 0.1, EG_TMIN = 4, NAV_RAMP = 0.5,
+  ML_BASE = 0.08, ML_MIN = 0.13, MAX_LEAN = 0.15, LEAN_SLEW = 0.30,
   A_TRACK = 2, PROF_TAU = 9, VS_KP_TR = 1.2, TRACK_FLOOR = 0.9, A_SLEW_TR = 6, A_SLEW_UP = 30,
-  GATE_ALT = 105, GATE_XZ = 1.5, GATE_VH = 0.7, GATE_TILT = 2.5, GATE_TIME = 2.0, ML_0 = 0.02, ML_K = 0.012, ML_V = 0.04,
+  GATE_ALT = 105, GATE_XZ = 1.5, GATE_VH = 0.7, GATE_TILT = 2.5, GATE_TIME = 2.0, ML_0 = 0.02, ML_K = 0.012, ML_V = 0.025,
   CONST_ON = true, CT_MAIN = 15, CT_FINE = 15, CT_ON_MARGIN = 0, CT_OFF_MARGIN = 40, CT_HAND_VS = 12, CT_END = 45, CT_LAG = 0.35,
   MAX_CLIMB = 2, FINE_LO = 0.5, FINE_HI = 14,
-  GLIDE_NEAR = 0, NEAR_R = 40, TRACK_TG = 6, ROT_ALT = 150,
+  GLIDE_NEAR = 0, NEAR_R = 40, TRACK_TG = 4, ROT_ALT = 150,
   ML_NEAR2 = 0.06,
   GLIDE_SLOPE = 0, GLIDE_R0 = 3,
   TILT_SAFE = 15, TILT_THR = 15, TILT_THR_W = 20,
-  GLIDE_VS = 40, GLIDE_GATE = 700, GLIDE_KP = 1.5, GLIDE_LEAN = 0.15, GLIDE_NAV_KP = 0.25, GLIDE_LAG = 1.5, GLIDE_TMIN = 2.5, GLIDE_VW_RATE = 3,
+  GLIDE_VS = 32, GLIDE_GATE = 700, GLIDE_KP = 1.5, GLIDE_LEAN = 0.22, GLIDE_NAV_KP = 0.25, GLIDE_LAG = 1.5, GLIDE_TMIN = 2.5, GLIDE_VW_RATE = 3,
   CRUISE_A = 5, CRUISE_LEAN = 0.10, NAV_MAX = 40, NAV_KP = 1.0, NAV_PK = 0.65,
   NAV_DEAD = 0.6, ALT_BURN_EST = 600, NAV_WARN = 600,
   LOG_BUDGET = 600000, STALE_LOOPS = 15, STALE_ABORT = 80,
   FLOOR_EV0 = 1.0, FLOOR_EV_K = 0.15, FLOOR_MIN_K = 0.4, FLOOR_RELAX_ALT = 25,
   A_FLOOR = 0.6, A_FALL = 30, VS_KP_DOWN = 1.0, FLOOR_ALT = 200,
-  ARMS_CLOSE = 15, ARMS_OPEN = 0,
+  ARMS_CLOSE = 15, ARMS_OPEN = 0, ARMS_HOLD = false, -- false: arms open CLAMP_T s after END (touch/cutoff); true: stay closed until next start
   ROLL_ON = true, ROLL_HOLD = false,
   ENTRY_DIR = { x = 0.227, z = 0.974 }, -- from the catch point to the free side
   ARMS_DIR = { x = -0.227, z = -0.974 }, -- x east+, z south+
   LIME_AXIS = "R", LIME_SIGN = 1,
   ROLL_OFFSET = 251.5, 
   ROLL_SIGN = 1, -- -1 if roll turns the wrong way
-  ROLL_KP = 0.3, ROLL_KD = 0.6, ROLL_K = 60, ROLL_MAX = 8, ROLL_DEAD = 2, ROLL_MIN = 1,
-  ROLL_ALT_MAX = 1200, ROLL_ALT_MIN = 3, ROLL_TILT_MAX = 12,
-  LOW_ALT = 30, ML_LOW = 0.08,
-  BODY_H = 69, BODY_FADE = 150,
+  ROLL_KP = 0.5, ROLL_KD = 0.9, ROLL_K = 90, ROLL_MAX = 10, ROLL_DEAD = 1.0, ROLL_MIN = 1, ROLL_KI = 0.25, ROLL_IMAX = 0.02,
+  ROLL_ALT_MAX = 1200, ROLL_ALT_MIN = 0.3, ROLL_TILT_MAX = 20,
+  LOW_ALT = 30, ML_LOW = 0.11,
+  BODY_H = 69, BODY_FADE = 150, CP_BELOW = true, CP_K = 0.6, -- control point extrapolated below the booster (= where the engine section crosses the arm plane); CP_K scales that lever (1 = full, 0 = COM only)
   CLOSE_V0 = 0.8, CLOSE_VK = 0.25, CLOSE_KB = 1.5,
-  ENTRY_AWAY = true, ENTRY_OFF = 10, ENTRY_ALT = 400, ENTRY_VERT = 40,
+  ENTRY_AWAY = true, ENTRY_OFF = 16, ENTRY_ALT = 300, ENTRY_VERT = 10, -- diagonal approach: lateral offset = OFF*(alt-VERT)/(ALT-VERT), straight line down to VERT m
   SLIDE_ON = false, STAND_OFF = 12, SLIDE_ALT = 3, SLIDE_V = 1.0, STAND_XZ = 2.0, STAND_VH = 1.0,
   A_CAP_G = 1.35, A_CAP_ALT = 250,
   A_PROF = 2.5, PROF_TAU_LOW = 3,
   KEEP_R = 8, KEEP_LAG = 3.0, BODY_CLEAR = 90,
   POS_ROT_ALT = 30,
-  GLIDE_TAPER_T = 6.0, GLIDE_TAPER_MIN = 0.4, 
+  GLIDE_TAPER_T = 8.0, GLIDE_TAPER_MIN = 0.05, 
   GLIDE_FF = 1.0,
   DFF_MAX = 0.05,
   GROUND_ALT = 15, GROUND_CAP_G = 1.05, TRIM_GROUND = 0.2,
@@ -144,9 +144,9 @@ local function setArms(level)
 end
 
 local log
-local clampT0, clampDone = nil, false
+local clampT0, clampDone, clampEnd = nil, false, nil
 local function startClamp()
-  if not clampT0 and not clampDone then
+  if not clampT0 then
     clampT0 = os.clock()
     setArms(CONFIG.ARMS_CLOSE)
     log(("ARMS CLOSE sent t=%.2f"):format(clampT0)); print("arms close sent")
@@ -154,7 +154,7 @@ local function startClamp()
 end
 
 local function releaseArms(now)
-  if clampT0 and now - clampT0 >= CONFIG.CLAMP_T then
+  if clampT0 and clampEnd and not CONFIG.ARMS_HOLD and now - clampEnd >= CONFIG.CLAMP_T then
     setArms(CONFIG.ARMS_OPEN)
     clampT0 = nil; clampDone = true
     log("ARMS RELEASED (signal cancelled)")
@@ -254,11 +254,13 @@ local function rampDown(a0, kT)
 end
 local function endFlight(reason, d, a0, kT)
   log(("END(%s) dist=%.2f a0=%.1f"):format(reason, d, a0))
+  clampEnd = os.clock()
   if d <= C.MISS_XZ then
     startClamp(); print("arms closed (" .. reason .. ")")
     rampDown(a0, kT)
   else
-    print("MISS, arms stay open"); allZero()
+    if clampT0 then setArms(C.ARMS_OPEN); clampT0 = nil; clampDone = true; log("ARMS OPENED (miss)") end
+    print("MISS, arms open"); allZero()
   end
 end
 
@@ -280,6 +282,7 @@ local function run()
   local standOff, sliding, staleLogged = C.STAND_OFF, false, false
   local gateT, gated = 0, false
   local ctReg = false
+  local rollI = 0
   while true do
     local s = read()
     if not s then allZero(); sleep(0.05)
@@ -295,12 +298,13 @@ local function run()
       local altc = math.max(alt, 0)
       local cOff
       if altc < C.POS_ROT_ALT then cOff = fd - altc
-      else cOff = (fd - math.min(altc, C.BODY_H)) * clamp((C.BODY_FADE - altc) / 60, 0, 1) end
+      elseif C.CP_BELOW then cOff = (fd - math.min(altc, C.BODY_H)) * clamp((C.BODY_FADE - altc) / 60, 0, 1) * C.CP_K
+      else cOff = math.max(fd - altc, 0) end
       local kf = cOff / fd
       local cx, cz = s.px + cOff * s.ux, s.pz + cOff * s.uz
       local vcom = math.sqrt(s.vx * s.vx + s.vz * s.vz)
       local seeking = C.SLIDE_ON and standOff > 0
-      local nvx, nvz = s.vx + (fvx - s.vx) * kf, s.vz + (fvz - s.vz) * kf
+      local nvx, nvz = s.vx + (fvx - s.vx) * kf * C.KFV, s.vz + (fvz - s.vz) * kf * C.KFV
       if not sdx then
         local hx, hz = finX - C.TARGET.x, finZ - C.TARGET.z
         local hl = math.sqrt(hx*hx + hz*hz)
@@ -373,6 +377,7 @@ local function run()
       end
       if not burn and alt < stop + (C.CONST_ON and 0 or C.GATE_ALT) + C.GLIDE_SLOPE * dist + C.GLIDE_NEAR * math.min(dist, C.NEAR_R) then
         burn = true; burnT0 = now; glide = false
+        pdF, pdR = pdF * 0.45, pdR * 0.45
         log(("BURN alt=%.1f vs=%.1f kT=%.2f aL=%.1f dist=%.1f"):format(alt, vs, kT, aL, dist))
         if dist > 3 or vcom > 1.5 then log(("BURN OFF-TARGET dist=%.1f vc=%.2f tilt=%.1f"):format(dist, vcom, s.tilt)) end
       end
@@ -397,7 +402,7 @@ local function run()
           end
           if sliding and dist < 2.5 then standOff = math.max(standOff - C.SLIDE_V * dt, 0) end
         end
-        if burn and alt < C.CLAMP_ALT then startClamp() end
+        if burn and alt + math.min(vs, 0) * C.CLAMP_LEAD < C.CLAMP_ALT and ((dist < C.CLAMP_START_XZ and s.tilt < C.CATCH_TILT * 2) or (alt < 4 and dist < C.MISS_XZ and s.tilt < 10)) then startClamp() end
         local funnel = (alt < C.COMMIT_ALT or holdUsed > C.HOLD_MAX) and 0 or (C.GLIDE_SLOPE * pos(dist - C.GLIDE_R0) + C.GLIDE_NEAR * clamp(dist - C.GLIDE_R0, 0, C.NEAR_R))
         fnl = funnel
         if alt < C.HOLD_ALT + funnel + 3 and holdS > 0 then holdUsed = holdUsed + dt end
@@ -500,10 +505,12 @@ local function run()
         glide = true; cr = true
         local tgo = math.max((alt - C.GLIDE_GATE) / math.max(-vs, 10), C.GLIDE_TMIN)
         local tB = (alt - stop) / math.max(-vs, 10)
-        local leanCap = C.GLIDE_LEAN * clamp(tB / C.GLIDE_TAPER_T, C.GLIDE_TAPER_MIN, 1)
+        local clos = dist > 0.5 and ((nvx - tvx) * dx + (nvz - tvz) * dz) / dist or 0
+        -- taper the lean before ignition only if we are already close and slow; a big residual error keeps full braking authority
+        local errK = clamp((dist - 3) / 10 + (math.abs(clos) - 2) / 6, 0, 1)
+        local leanCap = C.GLIDE_LEAN * clamp(tB / C.GLIDE_TAPER_T, math.max(C.GLIDE_TAPER_MIN, errK), 1)
         local vw = 0
         local brk = false
-        local clos = dist > 0.5 and ((nvx - tvx) * dx + (nvz - tvz) * dz) / dist or 0
         local dEff = dist - math.max(clos, 0) * C.GLIDE_LAG
         if dEff > C.NAV_DEAD then
           vw = math.min(C.NAV_MAX, dist / tgo)
@@ -567,13 +574,15 @@ local function run()
         e = (e + math.pi) % (2 * math.pi) - math.pi
         yawErr = math.deg(e)
         if math.abs(yawErr) < C.ROLL_DEAD then e = 0 end
+        if math.abs(yawErr) < 12 and math.abs(s.wU) < 0.03 then rollI = clamp(rollI + C.ROLL_KI * e * dt, -C.ROLL_IMAX, C.ROLL_IMAX) else rollI = rollI * math.max(1 - 2 * dt, 0) end
+        if e * rollI < 0 then rollI = rollI * math.max(1 - 4 * dt, 0) end -- error changed sign: bleed the integrator (anti-windup)
         -- heading (atan2(z,x)) increases clockwise from above; d(heading)/dt = -wU
-        local u = C.ROLL_SIGN * (C.ROLL_KP * e + C.ROLL_KD * s.wU)
+        local u = C.ROLL_SIGN * (C.ROLL_KP * e + rollI + C.ROLL_KD * s.wU)
         local lc, lw = clamp(u * C.ROLL_K, 0, C.ROLL_MAX), clamp(-u * C.ROLL_K, 0, C.ROLL_MAX)
         if lc < C.ROLL_MIN then lc = 0; acc.roll_cw = 0 end
         if lw < C.ROLL_MIN then lw = 0; acc.roll_ccw = 0 end
         out("roll_cw", lc); out("roll_ccw", lw)
-      else acc.roll_cw, acc.roll_ccw = 0, 0; out("roll_cw", 0); out("roll_ccw", 0) end
+      else rollI = 0; acc.roll_cw, acc.roll_ccw = 0, 0; out("roll_cw", 0); out("roll_ccw", 0) end
       local frozen = stale >= C.STALE_LOOPS or (math.abs(s.vx) < 1e-4 and math.abs(s.vy) < 1e-4 and math.abs(s.vz) < 1e-4)
       attitude(frozen and 0 or tF, frozen and 0 or tR, aTot, kT)
       if not frozen then out("eng_a", main); out("eng_b", fine) end
@@ -586,11 +595,11 @@ local function run()
       lastSig = sig
       if stale >= C.STALE_LOOPS and not staleLogged then staleLogged = true; log(("STALE onset alt=%.1f vs=%.2f"):format(alt, vs)) end
       local c = cache
-      log(("%.1f a=%.1f h=%.1f vs=%.2f/%.2f vh=%.2f dist=%.2f tilt=%.1f l=%.3f,%.3f d=%.3f,%.3f t=%.3f,%.3f aDes=%.1f kT=%.2f trim=%.2f hold=%.1f al=%d eng=%d,%d rcs=%d,%d,%d,%d gim=%d,%d,%d,%d b=%d dt=%.2f v=%.2f,%.2f tg=%.1f,%.1f yaw=%.1f rl=%d,%d p=%.1f,%.1f,%.1f vc=%.2f so=%.1f sl=%d")
+      log(("%.1f a=%.1f h=%.1f vs=%.2f/%.2f vh=%.2f dist=%.2f tilt=%.1f l=%.3f,%.3f d=%.3f,%.3f t=%.3f,%.3f aDes=%.1f kT=%.2f trim=%.2f hold=%.1f al=%d eng=%d,%d rcs=%d,%d,%d,%d gim=%d,%d,%d,%d b=%d dt=%.2f v=%.2f,%.2f tg=%.1f,%.1f yaw=%.1f rl=%d,%d p=%.1f,%.1f,%.1f vc=%.2f so=%.1f sl=%d wu=%.3f ri=%.3f")
         :format(now, alt, hLog, vs, desVS, vhor, dist, s.tilt, leanF, leanR, desF, desR, tF, tR,
           aDes, kT, trim, holdS + fnl, aligned and 1 or 0, c.eng_a or 0, c.eng_b or 0,
           c.rcs_n or 0, c.rcs_s or 0, c.rcs_w or 0, c.rcs_e or 0,
-          c.gim_n or 0, c.gim_s or 0, c.gim_w or 0, c.gim_e or 0, burn and 1 or 0, dt, s.vx, s.vz, dx, dz, yawErr, c.roll_cw or 0, c.roll_ccw or 0, s.px, s.py, s.pz, vcom, standOff, sliding and 1 or 0))
+          c.gim_n or 0, c.gim_s or 0, c.gim_w or 0, c.gim_e or 0, burn and 1 or 0, dt, s.vx, s.vz, dx, dz, yawErr, c.roll_cw or 0, c.roll_ccw or 0, s.px, s.py, s.pz, vcom, standOff, sliding and 1 or 0, s.wU, rollI))
       if stale >= C.STALE_LOOPS and burn and alt < 15 and tdist <= C.CLAMP_XZ then
         log(("CAUGHT(stale) alt=%.2f tdist=%.2f tilt=%.1f"):format(alt, tdist, s.tilt))
         return endFlight("stale", tdist, pA, kT)
@@ -603,7 +612,8 @@ end
 local ok, err = pcall(run)
 if not ok then log("ERROR: " .. tostring(err)) end
 allZero()
-while clampT0 and os.clock() - clampT0 < CONFIG.CLAMP_T do sleep(0.1) end
+if clampT0 and not clampEnd then clampEnd = os.clock() end
+while clampT0 and clampEnd and not CONFIG.ARMS_HOLD and os.clock() - clampEnd < CONFIG.CLAMP_T do sleep(0.1) end
 releaseArms(os.clock())
 if logf then logf.close() end
 if not ok then error(err, 0) end
