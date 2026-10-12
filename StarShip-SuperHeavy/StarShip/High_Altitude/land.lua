@@ -1,24 +1,21 @@
--- Starship landing autopilot (ground pad, no arms).
--- Guidance / landing logic is ported from the Super Heavy catch script (165).
--- Hardware layer is the Starship one (164): link frequencies, RCS block mixing, gimbals, vec-only engines.
--- Roll: PD heading hold from 165, output through TWO frequency groups (cw -> rcs_tl+rcs_bl, ccw -> rcs_tr+rcs_br).
+-- Starship landing autopilot (ground pad, no arms)
 local CONFIG = {
-  LAND_MODE = "pad",   -- "pad": ground pad, legs deploy, no arms (target = PAD from calib.lua) | "chopsticks": tower arms catch (target = TARGET from calib.lua)
+  LAND_MODE = "pad",
   TARGET = { x = -3279, y = 69, z = 6378 },
-  DECK_ALT = 24.8,   -- feet are this far BELOW the pose origin along body-up; alt = height of the feet above TARGET.y
-  THRUST_MULT = 9.0, -- start value of the thrust multiplier kT (vec engines only: accel per level = G.VEC*kT); learned online
+  DECK_ALT = 24.8,
+  THRUST_MULT = 9.0,
   ADAPT = true, ADAPT_K = 0.03, ADAPT_EXP_MIN = 0.5, KT_MIN = 4.0, KT_MAX = 16,
-  ADAPT_VMAX = 20,   -- m/s: kT is learned only while |vs| is below this (above it the drag-model error shifts kT by 15-20%, and the burn-start distance depends on kT very strongly)
-  DRAG_K = 0.0006,   -- vertical (engine-first) fall. 0.00156 (=11/84^2) is the belly-flop terminal speed: with it kT 'learned' 9.3 -> 7.7 in the glide at 38 m/s and the burn was lit ~220 m too high
+  ADAPT_VMAX = 20,
+  DRAG_K = 0.0006,
   KP = 0.6, KD = 2.2, KFV = 0.6, RATE_SMOOTH = 0.7,
-  ATT_KI = 0.60, ATT_KI_C = 0.30, ATT_IMAX = 0.35, ATT_I_ERR = 0.25,   -- I-term must work at larger errors now that KP is 0.6: steady error = disturbance/KP, it used to latch off above 0.07
-  ATT_I_ERR_C = 0.06,   -- glide: the integrator accumulates only for attitude errors below this (0.25 let it wind up to -0.15 and hold the lean at 0.42 against a 0.16 command)
-  ATT_I_RATE = 0.08,    -- ... and only when the lean rate is below this (lean/s)
-  LEAN_HARD = 0.40,     -- lean (rad) above which the attitude integrator is zeroed
+  ATT_KI = 0.60, ATT_KI_C = 0.30, ATT_IMAX = 0.35, ATT_I_ERR = 0.25,
+  ATT_I_ERR_C = 0.06,
+  ATT_I_RATE = 0.08,
+  LEAN_HARD = 0.40,
   GIM_SHARE = 0.9, GIM_ON = true,
 
-  VEC_MIN = 1,       -- lowest engine level while burning (like MIN_FINE in 165)
-  BURN_VEC_MIN = 7,  -- engine floor in the burn above GROUND_ALT: gimbal torque ~ thrust; at vec 3 the ship lost its attitude at 30 m/s and flew off sideways (0 = off)
+  VEC_MIN = 1,
+  BURN_VEC_MIN = 7,
   TRIM_KI = 0.25, TRIM_LIM = 2,
   A_RISE = 40, BURN_LAG = 2.0,
 
@@ -26,8 +23,8 @@ local CONFIG = {
   HOLD_ALT = 0, HOLD_RATE = 6.0, ML_NEAR = 0.11,
   HOLD_MAX = 60, COMMIT_ALT = 2, COMMIT_BODY = 78,
   BRAKE_FRAC = 1.3, BRAKE_LAG = 1.5,
-  BIAS_KI = 0.8, BIAS_MAX = 1.0,   -- integral trim of the lateral acceleration demand (thrust-line bias: lean that gives zero lateral accel)
-  CATCH_XZ = 2, CATCH_VH = 1.2, EXIT_XZ = 4, EXIT_VH = 2.5, CATCH_TILT = 3,   -- "aligned over the pad" flag
+  BIAS_KI = 0.8, BIAS_MAX = 1.0,
+  CATCH_XZ = 2, CATCH_VH = 1.2, EXIT_XZ = 4, EXIT_VH = 2.5, CATCH_TILT = 3,
   CUT_ALT = 0.5, MISS_XZ = 6.5,
   THRUST_RAMP = 2.0, REST_T = 2.0, REST_VS = 0.05, REST_G = 0.95,
   STILL_ALT = 1.5, STILL_ALT_HI = 8, STILL_VS = 0.25, STILL_T = 1.0,
@@ -36,24 +33,23 @@ local CONFIG = {
   ML_BASE = 0.08, ML_MIN = 0.09, MAX_LEAN = 0.15, LEAN_SLEW = 0.10,
   PROF_TAU = 9, VS_KP_TR = 1.2, TRACK_FLOOR = 0.9, A_SLEW_TR = 6, A_SLEW_UP = 30,
   GATE_ALT = 105, ML_0 = 0.02, ML_K = 0.012, ML_V = 0.025,
-  -- constant-thrust hoverslam (vec at CT_VEC until vs > -CT_HAND_VS, then the regulated profile)
+
   CONST_ON = true, CT_VEC = 11, CT_ON_MARGIN = 0, CT_OFF_MARGIN = 40, CT_HAND_VS = 16, CT_END = 25, CT_LAG = 0.35,
   MAX_CLIMB = 2,
   GLIDE_NEAR = 0, NEAR_R = 40, TRACK_TG = 6,
   GLIDE_SLOPE = 0, GLIDE_R0 = 3,
   TILT_SAFE = 15, TILT_THR = 15, TILT_THR_W = 20,
   GLIDE_VS = 40, GLIDE_GATE = 700, GLIDE_KP = 1.5, GLIDE_LEAN = 0.16, GLIDE_NAV_KP = 0.35, GLIDE_LAG = 1.5, GLIDE_TMIN = 5, GLIDE_VW_RATE = 3,
-  -- hover gate: above the arms the ship must be centred (FEET within HOLD_TD of the pad, slow) before it is allowed below HOLD_ALT; until then it slows to a hover
+  
   GLIDE_HOLD = false, GLIDE_HOLD_ALT = 80, GLIDE_HOLD_BAND = 40, GLIDE_HOLD_TD = 3.0, GLIDE_HOLD_V = 0.8, GLIDE_HOLD_MAX = 45,
-  GLIDE_LEAD = 1.0,      -- s: glide guidance uses velocity PREDICTED GLIDE_LEAD s ahead from the current tilt (attitude lags the demand by ~1.3 s -> pendulum)
-  GLIDE_LOW_ALT = 150, GLIDE_LEAN_LOW = 0.07, GLIDE_LOW_R = 10, GLIDE_LOW_V = 2.5,   -- cap applies ONLY when already within GLIDE_LOW_R m of the pad and slower than GLIDE_LOW_V m/s (otherwise the ship must keep full braking authority)
-    -- below this altitude the glide lean is capped (feet are ~25 m below the CoM: 10 deg tilt = bottom 4 m off the pad centre)
+  GLIDE_LEAD = 1.0,
+  GLIDE_LOW_ALT = 150, GLIDE_LEAN_LOW = 0.07, GLIDE_LOW_R = 10, GLIDE_LOW_V = 2.5,   -- cap applies ONLY when already within GLIDE_LOW_R m of the pad
   NAV_MAX = 9, NAV_PK = 0.65, NAV_DEAD = 0.6, NAV_WARN = 600,
   LOG_BUDGET = 600000, STALE_LOOPS = 15, STALE_ABORT = 80,
   FLOOR_EV0 = 1.0, FLOOR_EV_K = 0.15, FLOOR_MIN_K = 0.4, FLOOR_RELAX_ALT = 25,
   A_FLOOR = 0.6, A_FALL = 30, FLOOR_ALT = 200,
 
-  -- roll: heading hold about the long axis through two frequency groups
+  -- roll
   ROLL_ON = true,
   ROLL_HOLD = false,     -- true: hold the heading the ship had at start; false: turn to ARMS_DIR + ROLL_OFFSET from calib.lua (like the booster 165)
   ROLL_HDG = nil,        -- used only if there is no ARMS_DIR (no calib.lua): fixed heading in deg, atan2(z,x) of the heading axis
@@ -66,42 +62,37 @@ local CONFIG = {
   KDY = 1.0,             -- outside the roll window: plain spin damping (as in the old 164)
 
   LOW_ALT = 30, ML_LOW = 0.11,
-  BODY_FADE = 150, CP_LOW = 0, CP_K = 0, POS_ROT_ALT = 30,  -- control point = COM + CP*(feet offset). 0 = centre of mass (best for a ground pad); booster-style feet tracking: CP_LOW = 1, CP_K = 0.6 (fades to COM at BODY_FADE)
+  BODY_FADE = 150, CP_LOW = 0, CP_K = 0, POS_ROT_ALT = 30,
   CLOSE_V0 = 0.8, CLOSE_VK = 0.25, CLOSE_KB = 1.5,
   A_CAP_G = 1.35, A_CAP_ALT = 250,
   A_PROF = 2.5, PROF_TAU_LOW = 3,
   GLIDE_TAPER_T = 8.0, GLIDE_TAPER_MIN = 0.25,
   GLIDE_FF = 1.0,
-  GLIDE_BIAS_KI = 0.10, GLIDE_BIAS_R = 60, GLIDE_BIAS_VMAX = 1.5,   -- integrates only when speed < VMAX (no windup while swinging); 0.05/1.0 was too slow: in the hover a held lean of 0.05 gave only ~40% of the expected sideways accel
-    -- same drift trim during the glide (slower: stability needs Ki/Kp well below the velocity loop), only within GLIDE_BIAS_R m of the pad
+  GLIDE_BIAS_KI = 0.10, GLIDE_BIAS_R = 60, GLIDE_BIAS_VMAX = 1.5,
   DFF_MAX = 0.05,
   GROUND_ALT = 15, GROUND_CAP_G = 1.05, TRIM_GROUND = 0.2,
-  -- flaps: closed at the start of the landing programme (redstone link, kept outside L so allZero never releases it)
-  -- tower arms (same link and logic as the booster 165): close when the ship is over the pad low enough, open CLAMP_T s after the end
-  ROLL_MAX_ARMS = 4,   -- roll output cap while the arms are closed/closing (heading hold stays on)
-  ARMS_ON = true, ARMS_CLOSE = 15, ARMS_OPEN = 0, ARMS_HOLD = false,   -- ARMS_HOLD = true: stay closed until the next start
-  CLAMP_ALT = 25, CLAMP_START_XZ = 4.5, CLAMP_START_V = 1.5, CLAMP_T = 2, CLAMP_LEAD = 0.5,   -- CLAMP_START_V: do not close the arms while the ship still moves sideways faster than this (m/s)
+
+  ROLL_MAX_ARMS = 4,
+  ARMS_ON = true, ARMS_CLOSE = 15, ARMS_OPEN = 0, ARMS_HOLD = false,
+  CLAMP_ALT = 25, CLAMP_START_XZ = 4.5, CLAMP_START_V = 1.5, CLAMP_T = 2, CLAMP_LEAD = 0.5,
   FLAPS_ON = true, FLAPS_LEVEL = 15,
-  FLAPS_ALT = 120,       -- m above the pad: flaps fold on the way down (they hit the tower when folded at ignition, ~43 m); ignition is only a fallback
-  FLAPS_PULSE = true,    -- true: send the level for FLAPS_PULSE_T seconds, then 0 (if the trapdoor must be "pressed" instead of held)
+  FLAPS_ALT = 120,
+  FLAPS_PULSE = true,
   FLAPS_PULSE_T = 0.4,
-  -- starship legs (pad mode only): one-off pulse on a button frequency, no hold
+  -- starship legs
   LEGS_ON = true, LEGS_LEVEL = 15, LEGS_PULSE_T = 0.4,
-  LEGS_ALT = 50,         -- m above the pad: deploy the legs on the way down (ignition is only a fallback)
-  AIM_X = 2.5, AIM_Z = 0,   -- aim point shifted from TARGET (m); hits were all at x <= 0 from the target, the clean pass was at x = +3.5
-  -- pad mode (logic from Falcon landing.lua): lean from a speed profile towards the pad + cross-track damping, fades to pure vertical below PAD_VERT_ALT
+  LEGS_ALT = 50,
+  AIM_X = 2.5, AIM_Z = 0,
   PAD_NAV = true, PAD_VCAP = 15, PAD_GAIN = 0.08, PAD_LAT_DECEL = 0.7, PAD_SPEED_KP = 0.03, PAD_CROSS_KP = 0.03, PAD_LEAN = 0.14,
   PAD_VERT_ALT = 60, PAD_ZERO_ALT = 12,
   PAD_HI_ALT = 300, PAD_LEAN_HI = 0.05, PAD_TGO_K = 1.2, PAD_TGO_V = 20, PAD_TGO_MIN = 3,
-  -- attitude recovery (like Falcon emergencyRecovery): tilt > REC_TILT -> lean demand 0, cushion thrust REC_VEC, attitude gains x REC_GAIN, until tilt < REC_EXIT
-  REC_TILT = 14, REC_EXIT = 8, REC_VEC = 9, REC_GAIN = 2,   -- REC_TILT must stay well above PAD_LEAN in degrees (0.14 rad = 8 deg), otherwise recovery zeroes the lean demand every time the ship leans to brake
-  -- coast + separate landing burn: engines OFF in free fall, short divert burn only if the predicted miss at ignition is large
-  COAST_ON = false, GLIDE_VEC_MIN = 6, COAST_MISS_ON = 12, COAST_MISS_OFF = 4, COAST_END = 60, COAST_VFALL = 60, DIVERT_MAX = 8,   -- m; no divert below (ignition alt + COAST_END)
+
+  REC_TILT = 14, REC_EXIT = 8, REC_VEC = 9, REC_GAIN = 2,
+  COAST_ON = false, GLIDE_VEC_MIN = 6, COAST_MISS_ON = 12, COAST_MISS_OFF = 4, COAST_END = 60, COAST_VFALL = 60, DIVERT_MAX = 8,
   LOG = "landing_sh.log",
 }
 local C = CONFIG
 local function isPt(t) return type(t) == "table" and tonumber(t.x) and tonumber(t.y) and tonumber(t.z) end
--- target from calib.lua (saved by calibrate.lua). chopsticks: TARGET/ARMS_DIR/ROLL_OFFSET; pad: PAD/PAD_HDG
 local calibLoaded = false
 local PADMODE = (C.LAND_MODE == "pad")
 if C.LAND_MODE ~= "pad" and C.LAND_MODE ~= "chopsticks" then
@@ -171,9 +162,8 @@ local bridge = peripheral.find("redstone_link_bridge")
 assert(bridge, "redstone_link_bridge not found")
 assert(type(sublevel) == "table" and sublevel.getLogicalPose, "sublevel API not found")
 
--- ---------------------------------------------------------------- outputs
 local cache, pending, order, acc = {}, {}, {}, {}
-local function out(key, v)               -- fractional level -> integer with error carry (dither)
+local function out(key, v)               -- fractional leve
   local a = (acc[key] or 0) + clamp(v, 0, 15)
   local o = clamp(math.floor(a + 0.5), 0, 15)
   acc[key] = clamp(a - o, -1, 1)
@@ -200,7 +190,6 @@ local function allZero()
   flush()
 end
 
--- ---------------------------------------------------------------- sensors
 local function quat(q)
   local x, y, z, w
   if type(q.v) == "table" then x, y, z, w = q.v.x, q.v.y, q.v.z, q.a else x, y, z, w = q.x, q.y, q.z, q.w end
@@ -210,7 +199,7 @@ local function quat(q)
   if l < 1e-6 then return nil end
   return x/l, y/l, z/l, w/l
 end
-local function rot(qx, qy, qz, qw, a, b, c)       -- body -> world
+local function rot(qx, qy, qz, qw, a, b, c)       -- body world
   local tx, ty, tz = 2*(qy*c - qz*b), 2*(qz*a - qx*c), 2*(qx*b - qy*a)
   return a + qw*tx + (qy*tz - qz*ty), b + qw*ty + (qz*tx - qx*tz), c + qw*tz + (qx*ty - qy*tx)
 end
@@ -228,7 +217,7 @@ local function read()
   local rx, ry, rz = rot(qx, qy, qz, qw, 1, 0, 0)
   local fl, rl = math.sqrt(fx*fx + fz*fz), math.sqrt(rx*rx + rz*rz)
   if fl < 1e-3 or rl < 1e-3 then return nil end
-  local wwx, wwy, wwz = rot(qx, qy, qz, qw, w.x, w.y, w.z)   -- angular velocity in world axes (for the velocity of the feet)
+  local wwx, wwy, wwz = rot(qx, qy, qz, qw, w.x, w.y, w.z)   -- angular velocity in world axes
   return {
     px = pose.position.x, py = pose.position.y, pz = pose.position.z,
     vx = v.x, vy = v.y, vz = v.z,
@@ -240,11 +229,9 @@ local function read()
   }
 end
 
--- ---------------------------------------------------------------- attitude: torque demand -> actuators
--- tF/tR in lean/s2. lc/lw = roll levels (cw / ccw frequency group). vecLevel = engine level, kT = thrust multiplier.
 local function attitude(tF, tR, lc, lw, vecLevel, kT)
   local gs = vecLevel / G.GIM_REF_VEC * kT
-  local sh = C.GIM_ON and C.GIM_SHARE * clamp((vecLevel - 1) / 5, 0, 1) or 0   -- gimbal authority ~ thrust; at low thrust RCS does the work
+  local sh = C.GIM_ON and C.GIM_SHARE * clamp((vecLevel - 1) / 5, 0, 1) or 0   -- gimbal authority ~ thrust
   local rF, rR = tF * (1 - sh), tR * (1 - sh)
   local gF, gR = tF * sh, tR * sh
   local top, bot = pos(-rF) / G.TOP_F, pos(rF) / G.BOT_F
@@ -268,7 +255,7 @@ print(("kT0=%.1f aMax0=%.1f"):format(C.THRUST_MULT, G.VEC * 15 * C.THRUST_MULT))
 log(("start landing_sh (165 logic) kT0=%.2f roll_hold=%s roll_sign=%d roll_off=%.1f trim=%.1f arms=%s"):format(C.THRUST_MULT, tostring(C.ROLL_HOLD), C.ROLL_SIGN, C.ROLL_OFFSET, C.ROLL_TRIM, C.ARMS_DIR and "yes" or "no"))
 print("Started, Ctrl+T aborts")
 
--- accel -> engine level (vec only)
+-- accel
 local function vecFor(aDes, kT)
   if aDes <= 0.5 then return 0 end
   return clamp(aDes / (G.VEC * kT), C.VEC_MIN, 15)
@@ -400,7 +387,7 @@ local function run()
     else
       local now = os.clock(); local dt = clamp(now - last, 0.02, 0.5); last = now
       flapsTick()
-      -- feet point (fd < 0: below the pose origin along body-up) and its velocity
+      -- feet point
       local fd = -C.DECK_ALT
       local rx_, ry_, rz_ = fd * s.ux, fd * s.uy, fd * s.uz
       local finX, finY, finZ = s.px + rx_, s.py + ry_, s.pz + rz_
@@ -410,7 +397,7 @@ local function run()
       local altc = math.max(alt, 0)
       if alt < C.FLAPS_ALT then closeFlaps() end
       if alt < C.LEGS_ALT then openLegs() end
-      -- control point: feet near the ground, blends to the centre of mass high up
+      -- control point
       local kcp
       if altc < C.POS_ROT_ALT then kcp = C.CP_LOW - (C.CP_LOW - C.CP_K) * altc / C.POS_ROT_ALT
       else kcp = C.CP_K * clamp((C.BODY_FADE - altc) / (C.BODY_FADE - C.POS_ROT_ALT), 0, 1) end
@@ -435,7 +422,7 @@ local function run()
         print(("alt %.0f m, distance to the pad %.0f m"):format(alt, dist))
         if dist > C.NAV_WARN then print(("WARNING: pad is %.0f m away"):format(dist)) end
       end
-      -- attitude error valid at ANY tilt: rotation vector body-up -> world-up in body axes
+
       local th = math.rad(s.tilt)
       local sn = math.sin(th)
       local kA = (sn > 1e-3) and th / sn or 0
@@ -461,7 +448,6 @@ local function run()
         return endFlight("rest", tdist, pA, kT)
       end
 
-      -- online thrust-multiplier estimate (vertical accel vs commanded vec of the previous loop)
       if C.ADAPT and (burn or glide) and math.abs(vs) < C.ADAPT_VMAX and pvs and dt < 0.3 and stale == 0 and rest == 0 and math.abs(vs - pvs) > 1e-4 then
         local expected = G.VEC * (cache.vec or 0) * puy
         if expected > C.ADAPT_EXP_MIN then
@@ -540,8 +526,7 @@ local function run()
           trim = math.min(trim, C.TRIM_GROUND)
           if ev < 0.5 and s.uy >= 0.2 then aDes = math.min(aDes, C.GROUND_CAP_G * g / math.max(s.uy, 0.5)) end
         end
-        -- never let the engines drop below BURN_VEC_MIN while still high: the profile may ask for ~0.4 g (ship slower than the profile),
-        -- but with low thrust the gimbals have no authority and the lean runs away
+
         if C.BURN_VEC_MIN > 0 and alt > C.GROUND_ALT and s.uy >= 0.2 then
           aDes = math.max(aDes, G.VEC * C.BURN_VEC_MIN * kT)
         end
@@ -560,8 +545,7 @@ local function run()
         local ramp = clamp((now - burnT0) / C.NAV_RAMP, 0, 1)
         local ax = (6 * pdx / (tg * tg) - 5.5 * nvx / tg) * ramp
         local az = (6 * pdz / (tg * tg) - 5.5 * nvz / tg) * ramp
-        -- the thrust line is not exactly along body-up, so a lean that is held may give no lateral acceleration at all:
-        -- integrate the demand until the drift stops
+
         biasX = clamp(biasX + C.BIAS_KI * ax * dt, -C.BIAS_MAX, C.BIAS_MAX)
         biasZ = clamp(biasZ + C.BIAS_KI * az * dt, -C.BIAS_MAX, C.BIAS_MAX)
         ax, az = ax + biasX, az + biasZ
@@ -592,16 +576,14 @@ local function run()
         end
         pA = aDes
       elseif s.uy > 0.5 then
-        -- powered glide before the burn: lateral guidance to the pad, vertical speed held at GLIDE_VS
         if not glide then gvw = vhor end
         glide = true; cr = true
-        -- lead compensation: the tilt we already have will still accelerate us sideways for the next ~1 s; steer on the predicted velocity
         local aT = G.VEC * (cache.vec or 0) * kT
         local nvx, nvz = nvx + C.GLIDE_LEAD * aT * s.ux, nvz + C.GLIDE_LEAD * aT * s.uz
         local tgo = math.max((alt - C.GLIDE_GATE) / math.max(-vs, 10), C.GLIDE_TMIN)
         local tB = (alt - stop) / math.max(-vs, 10)
         local clos = dist > 0.5 and (nvx * dx + nvz * dz) / dist or 0
-        do  -- predicted miss at the ignition point if we just fall
+        do 
           local tf_ = math.max((alt - stop) / math.max(-vs, C.COAST_VFALL), 0.5)
           local mx_, mz_ = dx - nvx * tf_, dz - nvz * tf_
           local miss = math.sqrt(mx_ * mx_ + mz_ * mz_)
@@ -615,8 +597,7 @@ local function run()
           end
           coast = C.COAST_ON and not divert
         end
-        -- taper the lean before ignition only if we are already close and slow; a big residual error keeps full braking authority
-        local errK = clamp((dist - 0.8) / 3 + (math.abs(clos) - 0.2) / 1.0, 0, 1)   -- 'settled' now means dist<0.8 m and |closing speed|<0.2 m/s; before (1.5 m / 0.5 m/s) a ship drifting away at 0.7 m/s 2 m off the pad kept only ~3% lean authority and nothing stopped the drift
+        local errK = clamp((dist - 0.8) / 3 + (math.abs(clos) - 0.2) / 1.0, 0, 1) 
         local leanCap = C.GLIDE_LEAN * clamp(tB / C.GLIDE_TAPER_T, math.max(C.GLIDE_TAPER_MIN, errK), 1)
         if alt < C.GLIDE_LOW_ALT and dist < C.GLIDE_LOW_R and nvx * nvx + nvz * nvz < C.GLIDE_LOW_V ^ 2 then leanCap = math.min(leanCap, C.GLIDE_LEAN_LOW) end
         local vw = 0
@@ -627,7 +608,7 @@ local function run()
           local vb = math.sqrt(2 * leanCap * g * C.NAV_PK * (dEff - C.NAV_DEAD))
           if vb < vw then vw = vb; brk = true end
         elseif clos > 0.5 then
-          brk = true   -- predicted position already inside the dead zone but still closing: brake at full authority
+          brk = true 
         end
         gvw = gvw + clamp(vw - gvw, -C.GLIDE_VW_RATE * dt, C.GLIDE_VW_RATE * dt)
         vw = gvw
@@ -641,9 +622,8 @@ local function run()
           local ab = leanCap * g * C.NAV_PK * ffk
           ax = ax - ux * ab; az = az - uz * ab
         end
-        -- thrust-line bias: a held lean may give no lateral acceleration, the ship then sits still short of the pad
         if dist < C.GLIDE_BIAS_R then
-          if nvx * nvx + nvz * nvz < C.GLIDE_BIAS_VMAX ^ 2 then   -- only when nearly standing still: while swinging the integrator just feeds the pendulum
+          if nvx * nvx + nvz * nvz < C.GLIDE_BIAS_VMAX ^ 2 then
             biasX = clamp(biasX + C.GLIDE_BIAS_KI * ax * dt, -C.BIAS_MAX, C.BIAS_MAX)
             biasZ = clamp(biasZ + C.GLIDE_BIAS_KI * az * dt, -C.BIAS_MAX, C.BIAS_MAX)
           end
@@ -651,10 +631,10 @@ local function run()
           biasX, biasZ = biasX * math.max(1 - dt, 0), biasZ * math.max(1 - dt, 0)
         end
         ax, az = ax + biasX, az + biasZ
-        local vTgt = C.COAST_ON and math.max(-vs, C.GLIDE_VS) or C.GLIDE_VS   -- divert: do not brake the fall, thrust only ~hover
+        local vTgt = C.COAST_ON and math.max(-vs, C.GLIDE_VS) or C.GLIDE_VS
         if C.GLIDE_HOLD and not holdLatch and alt < C.GLIDE_HOLD_ALT + C.GLIDE_HOLD_BAND then
           if (tdist < C.GLIDE_HOLD_TD and vcom < C.GLIDE_HOLD_V) or holdWait > C.GLIDE_HOLD_MAX then
-            holdLatch = true   -- centred (or waited long enough): committed, descend from here on, never slow down again
+            holdLatch = true
             log(("HOLD RELEASE alt=%.1f td=%.2f vc=%.2f tilt=%.1f waited=%.1fs%s"):format(alt, tdist, vcom, s.tilt, holdWait, holdWait > C.GLIDE_HOLD_MAX and " TIMEOUT" or ""))
           else
             vTgt = C.GLIDE_VS * clamp((alt - C.GLIDE_HOLD_ALT) / C.GLIDE_HOLD_BAND, 0, 1)
@@ -662,7 +642,7 @@ local function run()
           end
         end
         local ev = -vTgt - vs
-        aDes = clamp((g + C.GLIDE_KP * ev) / math.max(s.uy, 0.5), G.VEC * C.GLIDE_VEC_MIN * kT, aMax * 0.95)   -- never below GLIDE_VEC_MIN: engines off = no gimbal authority = the ship tumbles
+        aDes = clamp((g + C.GLIDE_KP * ev) / math.max(s.uy, 0.5), G.VEC * C.GLIDE_VEC_MIN * kT, aMax * 0.95)
         aDes = math.min(aDes, pA + C.A_RISE * dt)
         local aref = math.max(aDes, g)
         local wx, wz = ax / aref, az / aref
@@ -697,9 +677,8 @@ local function run()
         local ie = cr and C.ATT_I_ERR_C or C.ATT_I_ERR
         local lm = math.sqrt(leanF * leanF + leanR * leanR)
         if lm > C.LEAN_HARD then
-          iF, iR = 0, 0   -- lean far beyond anything commanded: the integrator is wound up, drop it so the PD can pull back
+          iF, iR = 0, 0
         elseif s.tilt < 35 and math.abs(desF - leanF) < ie and math.abs(desR - leanR) < ie then
-          -- integrate only when the attitude is calm: during a transient the lag is not a disturbance (windup -> lean overshoot)
           if math.abs(rF) < C.ATT_I_RATE and math.abs(rR) < C.ATT_I_RATE then
             local kI = cr and C.ATT_KI_C or C.ATT_KI
             iF = clamp(iF + kI * (desF - leanF) * dt, -C.ATT_IMAX, C.ATT_IMAX)
@@ -715,7 +694,6 @@ local function run()
       local tF = kk * (C.KP * (desF - leanF) + C.KD * (dF - rF)) + iF
       local tR = kk * (C.KP * (desR - leanR) + C.KD * (dR - rR)) + iR
 
-      -- roll about the long axis through two frequency groups: lc = cw (rcs_tl+rcs_bl), lw = ccw (rcs_tr+rcs_br)
       local lc, lw = 0, 0
       local yawErr = 0
       if C.ROLL_ON and stale < C.STALE_LOOPS and alt < C.ROLL_ALT_MAX and alt > C.ROLL_ALT_MIN and s.tilt < C.ROLL_TILT_MAX then
@@ -732,8 +710,7 @@ local function run()
         yawErr = math.deg(e)
         if math.abs(yawErr) < C.ROLL_DEAD then e = 0 end
         if math.abs(yawErr) < 12 and math.abs(s.wU) < 0.03 then rollI = clamp(rollI + C.ROLL_KI * e * dt, -C.ROLL_IMAX, C.ROLL_IMAX) else rollI = rollI * math.max(1 - 2 * dt, 0) end
-        if e * rollI < 0 then rollI = rollI * math.max(1 - 4 * dt, 0) end   -- error changed sign: bleed the integrator
-        -- heading (atan2(z,x)) increases clockwise from above; d(heading)/dt = -wU
+        if e * rollI < 0 then rollI = rollI * math.max(1 - 4 * dt, 0) end
         local u = C.ROLL_SIGN * (C.ROLL_KP * e + rollI + C.ROLL_KD * s.wU)
         local rmax = clampT0 and C.ROLL_MAX_ARMS or C.ROLL_MAX
         lc, lw = clamp(u * C.ROLL_K, 0, rmax), clamp(-u * C.ROLL_K, 0, rmax)
@@ -741,7 +718,7 @@ local function run()
         if lw < C.ROLL_MIN then lw = 0 end
       else
         rollI = 0
-        local ty = -C.KDY * s.wU   -- outside the roll window: spin damping only
+        local ty = -C.KDY * s.wU 
         lc, lw = pos(-ty) / G.YAW_L, pos(ty) / G.YAW_R
       end
 
