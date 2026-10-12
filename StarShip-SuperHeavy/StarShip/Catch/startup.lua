@@ -1,15 +1,18 @@
--- Starship landing autopilot arms
+-- Starship landing autopilot (ground pad, no arms).
+-- Guidance / landing logic is ported from the Super Heavy catch script (165).
+-- Hardware layer is the Starship one (164): link frequencies, RCS block mixing, gimbals, vec-only engines.
+-- Roll: PD heading hold from 165, output through TWO frequency groups (cw -> rcs_tl+rcs_bl, ccw -> rcs_tr+rcs_br).
 local CONFIG = {
   TARGET = { x = -3279, y = 69, z = 6378 },
-  DECK_ALT = 24.8,  
-  THRUST_MULT = 9.0, 
+  DECK_ALT = 24.8,   -- feet are this far BELOW the pose origin along body-up; alt = height of the feet above TARGET.y
+  THRUST_MULT = 9.0, -- start value of the thrust multiplier kT (vec engines only: accel per level = G.VEC*kT); learned online
   ADAPT = true, ADAPT_K = 0.03, ADAPT_EXP_MIN = 0.5, KT_MIN = 4.0, KT_MAX = 16,
-  DRAG_K = 0.00156, 
+  DRAG_K = 0.00156,  -- 11/84^2, terminal speed of the ship from logs
   KP = 0.6, KD = 1.4, KFV = 0.6, RATE_SMOOTH = 0.7,
-  ATT_KI = 0.20, ATT_KI_C = 0.30, ATT_IMAX = 0.15, ATT_I_ERR = 0.25, 
+  ATT_KI = 0.20, ATT_KI_C = 0.30, ATT_IMAX = 0.15, ATT_I_ERR = 0.25,   -- I-term must work at larger errors now that KP is 0.6: steady error = disturbance/KP, it used to latch off above 0.07
   GIM_SHARE = 0.9, GIM_ON = true,
 
-  VEC_MIN = 1,
+  VEC_MIN = 1,       -- lowest engine level while burning (like MIN_FINE in 165)
   TRIM_KI = 0.25, TRIM_LIM = 2,
   A_RISE = 40, BURN_LAG = 2.0,
 
@@ -17,8 +20,8 @@ local CONFIG = {
   HOLD_ALT = 0, HOLD_RATE = 6.0, ML_NEAR = 0.11,
   HOLD_MAX = 60, COMMIT_ALT = 2, COMMIT_BODY = 78,
   BRAKE_FRAC = 1.3, BRAKE_LAG = 1.5,
-  BIAS_KI = 0.8, BIAS_MAX = 1.0,
-  CATCH_XZ = 2, CATCH_VH = 1.2, EXIT_XZ = 4, EXIT_VH = 2.5, CATCH_TILT = 3,  
+  BIAS_KI = 0.8, BIAS_MAX = 1.0,   -- integral trim of the lateral acceleration demand (thrust-line bias: lean that gives zero lateral accel)
+  CATCH_XZ = 2, CATCH_VH = 1.2, EXIT_XZ = 4, EXIT_VH = 2.5, CATCH_TILT = 3,   -- "aligned over the pad" flag
   CUT_ALT = 0.5, MISS_XZ = 6.5,
   THRUST_RAMP = 2.0, REST_T = 2.0, REST_VS = 0.05, REST_G = 0.95,
   STILL_ALT = 1.5, STILL_ALT_HI = 8, STILL_VS = 0.25, STILL_T = 1.0,
@@ -44,7 +47,7 @@ local CONFIG = {
   FLOOR_EV0 = 1.0, FLOOR_EV_K = 0.15, FLOOR_MIN_K = 0.4, FLOOR_RELAX_ALT = 25,
   A_FLOOR = 0.6, A_FALL = 30, FLOOR_ALT = 200,
 
-  -- roll
+  -- roll: heading hold about the long axis through two frequency groups
   ROLL_ON = true,
   ROLL_HOLD = false,     -- true: hold the heading the ship had at start; false: turn to ARMS_DIR + ROLL_OFFSET from calib.lua (like the booster 165)
   ROLL_HDG = nil,        -- used only if there is no ARMS_DIR (no calib.lua): fixed heading in deg, atan2(z,x) of the heading axis
