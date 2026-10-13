@@ -1,36 +1,34 @@
--- STARSHIP HIGH-ALTITUDE TEST (SN8-style) rev3
--- Профиль подъёма масштабирован по реальному SN8 (9 дек 2020): 12,5 км за ~280 с,
--- Raptor #1 выкл на T+1:40, #2 на T+3:10, последний на T+4:40 (корабль почти завис в апогее).
--- rev4: подъём в ~3 раза резвее (VCRUISE/V0/A_UP/A_DEC x3, апогей тот же 2200 м); вместо belly flop - небольшой наклон ~35 град (боком к потоку стороной с heat shield).
--- Снос к паду во время подъёма, belly flop, передача в sh_landing.lua
+-- STARSHIP HIGH-ALTITUDE TEST (SN8-style)
+-- Ascent -> coast at apogee -> hand off to sh_landing.lua
+-- Climb profile scaled from the real SN8 flight, ~3x faster
 local C = {
-  APO = 2200,            -- апогей над палубой, м
-  VCRUISE = 30,         -- крейсерская вертикальная скорость, м/с (было 17, x3)
-  V0 = 5.3, A_UP = 1.24, -- старт: vs = V0 + A_UP*t (было 3 / 0.7, x3)
-  A_DEC = 0.88,           -- торможение у апогея, м/с2 (было 0.5, x3; торможение начнётся с ~870 м до апогея)
-  KVZ = 1.0, KIV = 0.04, LVL_MAX = 12,   -- LVL_MAX 10->12: запас тяги на разгон 2.1 м/с2 (нужно ~8 уровней)
-  A_LVL = 1.65,          -- м/с2 на один уровень vec (по логам)
+  APO = 2200,            -- apogee above deck, m
+  VCRUISE = 30,          -- cruise climb rate, m/s
+  V0 = 5.3, A_UP = 1.24, -- start: vs = V0 + A_UP*t
+  A_DEC = 0.88,          -- decel near apogee, m/s2
+  KVZ = 1.0, KIV = 0.04, LVL_MAX = 12,   -- LVL_MAX: thrust headroom
+  A_LVL = 1.65,          -- m/s2 per vec level (from logs)
   ASC_MAX_T = 330,
-  -- горизонталь: во время подъёма плавно сносим точку удержания к паду
-  PAD = { x = -3278, z = 6378 }, STANDOFF = 0, SAME_SPOT = false,  -- SAME_SPOT: подъём и флип строго над точкой старта (как реальный SN8), к паду летит посадочный скрипт
-    -- апогей над точкой в STANDOFF м до пада
-  HOLD_KP = 0.05, HOLD_VMAX = 10, HOLD_KV = 0.20, HOLD_LEAN = 0.10, HOLD_KI = 0.004,
-  KI_ASC = 0.15, BIAS_MAX = 0.30, BIAS_REF = 10,
-  BIAS0_F = -0.048, BIAS0_R = -0.001,   -- постоянный перекос тяги из лога (убирает «писк» РСУ на старте)
-  HDG = false, HDG_KP = 0.5, HDG_KD = 1.5, HDG_RATE = 0.3,  -- курс: R-ось корпуса ⟂ линии пада => нос от пада, снос при перевороте идёт К паду
+  -- horizontal: hold point drifts toward the pad during ascent
+  PAD = { x = -3278, z = 6378 }, STANDOFF = 0, SAME_SPOT = false,  -- SAME_SPOT=true: stay above launch point
+  -- STANDOFF: apogee point distance from the pad, m
+  HOLD_KP = 0.05, HOLD_VMAX = 10, HOLD_KV = 0.10, HOLD_LEAN = 0.10, HOLD_KI = 0.004,
+  KI_ASC = 0.15, BIAS_MAX = 0.5, BIAS_REF = 10,
+  BIAS0_F = -0.048, BIAS0_R = -0.001,   -- constant thrust bias, from logs
+  HDG = false, HDG_KP = 0.5, HDG_KD = 1.5, HDG_RATE = 0.3,  -- heading hold relative to pad line
   COUNTDOWN = 3,
-  -- belly flop (как раньше: handoff на vs~-48, tilt~101)
-  FLIP = false, BELLY_TILT = 35, BELLY_RATE = 0.4, HANDOFF_VS = -15,   -- BELLY_TILT: наклон корпуса при передаче в sh_landing (было 104 = плашмя)
+  -- tilt before handoff
+  FLIP = false, BELLY_TILT = 35, BELLY_RATE = 0.4, HANDOFF_VS = -15,   -- BELLY_TILT: deg at handoff
   TARGET_Y = 70, DECK_ALT = 24.8,
   RCS_MULT = 1, GIM_SHARE = 0.97, RCS_DB = 0.006, YAW_DB = 0.02, GIM_GAIN = 1.5, KT = 4.5,
-  KP = 0.4, KD = 1.0, RATE_MAX = 0.4, FLIP_RATE = 0.8, KDY = 1.5, YAW_MAX = 0.10, RATE_SMOOTH = 0.7,
+  KP = 0.4, KD = 1.5, RATE_MAX = 0.4, FLIP_RATE = 0.8, KDY = 1.5, YAW_MAX = 0.10, RATE_SMOOTH = 0.7,
   LANDING = "sh_landing.lua", LOG = "hitest.log",
 }
 local G = {
   VEC = 0.367,
   TOP_F = 0.0096, BOT_F = 0.0058, YAW_R = 0.0133, YAW_L = 0.0144,
-  ZAV_L = 0.0048, ZAV_R = 0.0057,
-  GIM_N = 0.0045, GIM_S = 0.0039, GIM_W = 0.0040, GIM_E = 0.0040, GIM_REF_VEC = 8,
+  ZAV_L = 0.0016, ZAV_R = 0.0057,   -- ZAV_L, GIM_W synced with sh_landing.lua
+  GIM_N = 0.0045, GIM_S = 0.0039, GIM_W = 0.0013, GIM_E = 0.0040, GIM_REF_VEC = 8,
 }
 G.TOP_F, G.BOT_F, G.YAW_R, G.YAW_L = G.TOP_F*C.RCS_MULT, G.BOT_F*C.RCS_MULT, G.YAW_R*C.RCS_MULT, G.YAW_L*C.RCS_MULT
 G.ZAV_L, G.ZAV_R = G.ZAV_L*C.RCS_MULT, G.ZAV_R*C.RCS_MULT
@@ -65,7 +63,7 @@ local bridge = peripheral.find("redstone_link_bridge")
 assert(bridge, "redstone_link_bridge not found")
 assert(type(sublevel) == "table" and sublevel.getLogicalPose, "sublevel API not found")
 
--- вывод с дизерингом: дробные уровни работают как усреднённая по времени тяга
+-- dithered output: fractional levels act as time-averaged thrust
 local cache, pending, order, acc = {}, {}, {}, {}
 local function out(key, v)
   local a = (acc[key] or 0) + clamp(v, 0, 15)
@@ -177,7 +175,7 @@ local function run()
         if C.PAD then
           local dx, dz = C.PAD.x - homeX, C.PAD.z - homeZ
           local d = math.sqrt(dx*dx + dz*dz)
-          if d > 1 and not C.SAME_SPOT then   -- STANDOFF > d: апогей дальше от пада, чем старт (переворот потом несёт К паду)
+          if d > 1 and not C.SAME_SPOT then   -- STANDOFF > d: apogee farther from pad than launch
            aimX, aimZ = C.PAD.x - dx/d*C.STANDOFF, C.PAD.z - dz/d*C.STANDOFF end
           log(("PAD dist from launch %.1f m, aim point offset %.1f m"):format(d, math.sqrt((aimX-homeX)^2 + (aimZ-homeZ)^2)))
         end
@@ -208,7 +206,7 @@ local function run()
       end
       local desF, desR, vecL, vsT = 0, 0, 0, 0
       if phase == "ascent" then
-        -- вертикальный профиль: разгон -> крейсер -> плавное торможение до нуля в апогее
+        -- vertical profile: accelerate, cruise, decelerate to zero at apogee
         local vcr = math.min(C.VCRUISE, C.V0 + C.A_UP * tt)
         local vdec = math.sqrt(2 * C.A_DEC * math.max(C.APO - alt, 0)) + 0.4
         local aFF = 0
@@ -217,7 +215,7 @@ local function run()
         iV = clamp(iV + C.KIV * (vsT - s.vy) * dt, -2, 2)
         local aCmd = aFF + C.KVZ * (vsT - s.vy)
         vecL = clamp((g + aCmd) / C.A_LVL / math.max(s.uy, 0.8) + iV, 0, C.LVL_MAX)
-        -- горизонталь: точка удержания плавно (smoothstep по высоте) уезжает к апогейной точке над падом
+        -- hold point eases (smoothstep) toward the apogee point
         local p = clamp(alt / C.APO, 0, 1)
         local sp = p*p*(3 - 2*p)
         local dsp = 6*p*(1 - p) * s.vy / C.APO
@@ -242,7 +240,7 @@ local function run()
           return true
         end
       end
-      if phase == "ascent" and alt > 3 and s.tilt < 25 then
+      if phase == "ascent" and alt > 0.5 and s.tilt < 25 then   -- trim starts right at liftoff
         bF = clamp(bF + C.KI_ASC * clamp(desF - leanF, -0.3, 0.3) * dt, -C.BIAS_MAX, C.BIAS_MAX)
         bR = clamp(bR + C.KI_ASC * clamp(desR - leanR, -0.3, 0.3) * dt, -C.BIAS_MAX, C.BIAS_MAX)
       elseif phase ~= "ascent" then bF, bR = 0, 0 end

@@ -1,6 +1,7 @@
-local LAND_MODE = "pad"
-local PAD_DY = 24.8
-local CATCH_DY = -31.6
+-- keep LAND_MODE and PAD_DY in sync with startup.lua
+local LAND_MODE = "pad"          -- "chopsticks" | "pad"
+local PAD_DY = 24.8                 -- pad mode: foot below pose origin, m (same as CONFIG.PAD_DY)
+local CATCH_DY = -31.6           -- chopsticks mode: grid fins above pose origin (same as CONFIG.CATCH_DY)
 local TOWER = { x = -2899, z = 6248 }
 local LIME_AXIS, LIME_SIGN = "R", 1
 local atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
@@ -11,7 +12,7 @@ local function rot(qx,qy,qz,qw,a,b,c)
   return a+qw*tx+(qy*tz-qz*ty), b+qw*ty+(qz*tx-qx*tz), c+qw*tz+(qx*ty-qy*tx)
 end
 
--- calib.lua
+-- calib.lua keeps both modes' data: the mode being calibrated overwrites its own keys, the rest is preserved
 local function loadOld()
   if fs.exists("calib.lua") then
     local ok, t = pcall(dofile, "calib.lua")

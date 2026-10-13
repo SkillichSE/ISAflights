@@ -8,14 +8,14 @@ local CONFIG = {
   ADAPT_VMAX = 20,
   DRAG_K = 0.0006,
   KP = 0.6, KD = 2.2, KFV = 0.6, RATE_SMOOTH = 0.7,
-  ATT_KI = 0.60, ATT_KI_C = 0.30, ATT_IMAX = 0.35, ATT_I_ERR = 0.25,
+  ATT_KI = 0.35, ATT_KI_C = 0.30, ATT_IMAX = 0.35, ATT_I_ERR = 0.08,
   ATT_I_ERR_C = 0.06,
   ATT_I_RATE = 0.08,
   LEAN_HARD = 0.40,
   GIM_SHARE = 0.9, GIM_ON = true,
 
   VEC_MIN = 1,
-  BURN_VEC_MIN = 7,
+  BURN_VEC_MIN = 9,
   TRIM_KI = 0.25, TRIM_LIM = 2,
   A_RISE = 40, BURN_LAG = 2.0,
 
@@ -83,10 +83,12 @@ local CONFIG = {
   LEGS_ON = true, LEGS_LEVEL = 15, LEGS_PULSE_T = 0.4,
   LEGS_ALT = 50,
   AIM_X = 2.5, AIM_Z = 0,
-  PAD_NAV = true, PAD_VCAP = 15, PAD_GAIN = 0.08, PAD_LAT_DECEL = 0.7, PAD_SPEED_KP = 0.03, PAD_CROSS_KP = 0.03, PAD_LEAN = 0.14,
+  PAD_NAV = true, PAD_VCAP = 15, PAD_GAIN = 0.2, PAD_LAT_DECEL = 0.5, PAD_SPEED_KP = 0.03, PAD_DEADBAND = 0.08, PAD_LEAN_GND = 0.05, PAD_SLEW = 0.06, PAD_LEAN = 0.06,
   PAD_VERT_ALT = 60, PAD_ZERO_ALT = 12,
-  PAD_HI_ALT = 300, PAD_LEAN_HI = 0.05, PAD_TGO_K = 1.2, PAD_TGO_V = 20, PAD_TGO_MIN = 3,
+  PAD_KI = 0.004, PAD_IMAX = 0.06, PAD_I_ALT_MIN = 3, PAD_I_EM = 6,   -- integral on velocity error: learns the constant sideways push that P alone leaves as a steady drift
+  PAD_HI_ALT = 300, PAD_LEAN_HI = 0.08, PAD_TGO_K = 2.5, PAD_TGO_V = 20, PAD_TGO_MIN = 3,
 
+  R_TQ_K = 0.0217, R_TQ_CAP = 0.24,   -- R-axis torque cap = weak side (GIM_W/ZAV_L) authority
   REC_TILT = 14, REC_EXIT = 8, REC_VEC = 9, REC_GAIN = 2,
   COAST_ON = false, GLIDE_VEC_MIN = 6, COAST_MISS_ON = 12, COAST_MISS_OFF = 4, COAST_END = 60, COAST_VFALL = 60, DIVERT_MAX = 8,
   LOG = "landing_sh.log",
@@ -309,7 +311,7 @@ local function endFlight(reason, d, a0, kT)
   rampDown(a0, kT)
 end
 
-local FLAPS = { "minecraft:jungle_trapdoor", "minecraft:jungle_trapdoor" }
+local FLAPS = { "create:shaft", "createendertransmission:energy_transmitter" }
 local flapsDone, flapsOffAt = false, nil
 local function closeFlaps()      -- called once, at engine ignition (just before landing)
   if flapsDone or not C.FLAPS_ON then return end
@@ -340,24 +342,29 @@ local function flapsTick()       -- non-blocking end of the pulses
   end
 end
 
-local function padLean(dx, dz, dist, vx, vz, alt, cap, vs)
-  if dist < 0.3 or alt < C.PAD_ZERO_ALT then return 0, 0 end
-  local ux, uz = dx / dist, dz / dist
-  local des = math.min(C.PAD_VCAP, dist * C.PAD_GAIN, math.sqrt(2 * C.PAD_LAT_DECEL * dist))
-  local tgo = math.max(alt / math.max(-vs, C.PAD_TGO_V), C.PAD_TGO_MIN)
-  des = math.min(des, C.PAD_TGO_K * dist / tgo)
-  if alt > C.PAD_HI_ALT then cap = math.min(cap, C.PAD_LEAN_HI) end
-  local err = des - (vx * ux + vz * uz)
-  if math.abs(err) < 0.3 then err = 0 end
-  local l = clamp(C.PAD_SPEED_KP * err, -cap, cap)
-  local px, pz = -uz, ux
-  local c = clamp(-C.PAD_CROSS_KP * (vx * px + vz * pz), -0.05, 0.05)
-  local wx, wz = ux * l + px * c, uz * l + pz * c
-  if alt < C.PAD_VERT_ALT then
-    local k = clamp((alt - C.PAD_ZERO_ALT) / (C.PAD_VERT_ALT - C.PAD_ZERO_ALT), 0, 1)
-    wx, wz = wx * k, wz * k
+local padIx, padIz = 0, 0
+local function padLean(dx, dz, dist, vx, vz, alt, cap, vs, dt)
+  -- seek: fades the "fly to pad" term near the ground; velocity damping stays on
+  local seek = clamp((alt - C.PAD_ZERO_ALT) / (C.PAD_VERT_ALT - C.PAD_ZERO_ALT), 0, 1)
+  local ux, uz, des = 0, 0, 0
+  if dist > 0.3 then
+    ux, uz = dx / dist, dz / dist
+    des = math.min(C.PAD_VCAP, dist * C.PAD_GAIN, math.sqrt(2 * C.PAD_LAT_DECEL * dist))
+    local tgo = math.max(alt / math.max(-vs, C.PAD_TGO_V), C.PAD_TGO_MIN)
+    des = math.min(des, C.PAD_TGO_K * dist / tgo) * seek
   end
-  return wx, wz
+  if alt > C.PAD_HI_ALT then cap = math.min(cap, C.PAD_LEAN_HI) end
+  if alt < C.PAD_ZERO_ALT then cap = math.min(cap, C.PAD_LEAN_GND) end
+  -- velocity error vector: covers along-track and cross-track together
+  local ex, ez = ux * des - vx, uz * des - vz
+  local em = math.sqrt(ex * ex + ez * ez)
+  if alt > C.PAD_I_ALT_MIN and em < C.PAD_I_EM then
+    padIx = clamp(padIx + C.PAD_KI * ex * dt, -C.PAD_IMAX, C.PAD_IMAX)
+    padIz = clamp(padIz + C.PAD_KI * ez * dt, -C.PAD_IMAX, C.PAD_IMAX)
+  end
+  if em < C.PAD_DEADBAND then return padIx, padIz end
+  local l = math.min(C.PAD_SPEED_KP * (em - C.PAD_DEADBAND), cap)
+  return ex / em * l + padIx, ez / em * l + padIz
 end
 
 local function run()
@@ -370,6 +377,7 @@ local function run()
   local n, stale, lastSig = 0, 0, nil
   local first, still, rest = true, 0, 0
   local iF, iR = 0, 0
+  local rSat = false
   local aligned, holdS, holdUsed = false, C.HOLD_ALT, 0
   local pdesVS = 0
   local glide = false
@@ -395,7 +403,6 @@ local function run()
       local fvz = s.vz + (s.wwx * ry_ - s.wwy * rx_)
       local alt = finY - C.TARGET.y
       local altc = math.max(alt, 0)
-      if alt < C.FLAPS_ALT then closeFlaps() end
       if alt < C.LEGS_ALT then openLegs() end
       -- control point
       local kcp
@@ -471,7 +478,6 @@ local function run()
       end
       if not burn and alt < stop + (C.CONST_ON and 0 or C.GATE_ALT) + C.GLIDE_SLOPE * dist + C.GLIDE_NEAR * math.min(dist, C.NEAR_R) then
         burn = true; burnT0 = now; glide = false
-        closeFlaps()
         openLegs()
         pdF, pdR = pdF * 0.45, pdR * 0.45
         log(("BURN alt=%.1f vs=%.1f kT=%.2f dist=%.1f"):format(alt, vs, kT, dist))
@@ -555,11 +561,11 @@ local function run()
         local wx, wz = ax / aref, az / aref
         local wm = math.sqrt(wx*wx + wz*wz)
         if wm > ml then wx, wz = wx * ml / wm, wz * ml / wm end
-        if PADMODE and C.PAD_NAV then wx, wz = padLean(dx, dz, dist, nvx, nvz, alt, math.min(ml, C.PAD_LEAN), vs) end
+        if PADMODE and C.PAD_NAV then wx, wz = padLean(dx, dz, dist, nvx, nvz, alt, math.min(ml, C.PAD_LEAN), vs, dt) end
         local tf = clamp(1 - (s.tilt - C.TILT_SAFE) / (C.TILT_SAFE * 1.5), 0, 1)
         desF = (wx * s.fx + wz * s.fz) * tf
         desR = (wx * s.rx + wz * s.rz) * tf
-        local mx = C.LEAN_SLEW * dt
+        local mx = (PADMODE and C.PAD_NAV and C.PAD_SLEW or C.LEAN_SLEW) * dt
         desF = pdF + clamp(desF - pdF, -mx, mx)
         desR = pdR + clamp(desR - pdR, -mx, mx)
         dF, dR = (desF - pdF) / dt, (desR - pdR) / dt
@@ -648,9 +654,9 @@ local function run()
         local wx, wz = ax / aref, az / aref
         local wm = math.sqrt(wx*wx + wz*wz)
         if wm > leanCap then wx, wz = wx * leanCap / wm, wz * leanCap / wm end
-        if PADMODE and C.PAD_NAV then wx, wz = padLean(dx, dz, dist, nvx, nvz, alt, math.min(leanCap, C.PAD_LEAN), vs) end
+        if PADMODE and C.PAD_NAV then wx, wz = padLean(dx, dz, dist, nvx, nvz, alt, math.min(leanCap, C.PAD_LEAN), vs, dt) end
         local tf = clamp(1 - (s.tilt - C.TILT_SAFE) / (C.TILT_SAFE * 1.5), 0, 1)
-        local mx = C.LEAN_SLEW * dt
+        local mx = (PADMODE and C.PAD_NAV and C.PAD_SLEW or C.LEAN_SLEW) * dt
         desF = pdF + clamp((wx * s.fx + wz * s.fz) * tf - pdF, -mx, mx)
         desR = pdR + clamp((wx * s.rx + wz * s.rz) * tf - pdR, -mx, mx)
         dF, dR = (desF - pdF) / dt, (desR - pdR) / dt
@@ -682,7 +688,7 @@ local function run()
           if math.abs(rF) < C.ATT_I_RATE and math.abs(rR) < C.ATT_I_RATE then
             local kI = cr and C.ATT_KI_C or C.ATT_KI
             iF = clamp(iF + kI * (desF - leanF) * dt, -C.ATT_IMAX, C.ATT_IMAX)
-            iR = clamp(iR + kI * (desR - leanR) * dt, -C.ATT_IMAX, C.ATT_IMAX)
+            if not rSat then iR = clamp(iR + kI * (desR - leanR) * dt, -C.ATT_IMAX, C.ATT_IMAX) end
           end
         else
           local bl = cr and 3.0 or 1.0
@@ -693,6 +699,11 @@ local function run()
       local kk = recov and C.REC_GAIN or 1
       local tF = kk * (C.KP * (desF - leanF) + C.KD * (dF - rF)) + iF
       local tR = kk * (C.KP * (desR - leanR) + C.KD * (dR - rR)) + iR
+      rSat = false
+      if vec >= 6 then   -- symmetric R cap: strong side (E/zav_r) must not exceed what weak side (W/zav_l) can brake
+        local trMax = math.min(C.R_TQ_CAP, C.R_TQ_K * vec / G.GIM_REF_VEC * kT)
+        if math.abs(tR) > trMax then rSat = true; tR = clamp(tR, -trMax, trMax) end
+      end
 
       local lc, lw = 0, 0
       local yawErr = 0
@@ -735,12 +746,12 @@ local function run()
       lastSig = sig
       if stale >= C.STALE_LOOPS and not staleLogged then staleLogged = true; log(("STALE onset alt=%.1f vs=%.2f"):format(alt, vs)) end
       local c = cache
-      log(("%.1f a=%.1f h=%.1f vs=%.2f/%.2f vh=%.2f dist=%.2f tilt=%.1f l=%.3f,%.3f d=%.3f,%.3f t=%.3f,%.3f aDes=%.1f kT=%.2f trim=%.2f hold=%.1f al=%d vec=%d rcs=%d,%d,%d,%d zav=%d,%d gim=%d,%d,%d,%d b=%d dt=%.2f v=%.2f,%.2f dd=%.2f,%.2f yaw=%.1f roll=%.1f,%.1f p=%.1f,%.1f,%.1f vc=%.2f wu=%.3f ri=%.3f td=%.2f")
+      log(("%.1f a=%.1f h=%.1f vs=%.2f/%.2f vh=%.2f dist=%.2f tilt=%.1f l=%.3f,%.3f d=%.3f,%.3f t=%.3f,%.3f aDes=%.1f kT=%.2f trim=%.2f hold=%.1f al=%d vec=%d rcs=%d,%d,%d,%d zav=%d,%d gim=%d,%d,%d,%d b=%d dt=%.2f v=%.2f,%.2f dd=%.2f,%.2f yaw=%.1f roll=%.1f,%.1f p=%.1f,%.1f,%.1f vc=%.2f wu=%.3f ri=%.3f td=%.2f iF=%.3f iR=%.3f pi=%.3f,%.3f")
         :format(now, alt, hLog, vs, desVS, vhor, dist, s.tilt, leanF, leanR, desF, desR, tF, tR,
           aDes, kT, trim, holdS + fnl, aligned and 1 or 0, c.vec or 0,
           c.rcs_tl or 0, c.rcs_tr or 0, c.rcs_bl or 0, c.rcs_br or 0, c.zav_l or 0, c.zav_r or 0,
           c.gim_n or 0, c.gim_s or 0, c.gim_w or 0, c.gim_e or 0, burn and 1 or 0, dt, s.vx, s.vz, dx, dz, yawErr,
-          lc, lw, s.px, s.py, s.pz, vcom, s.wU, rollI, tdist))
+          lc, lw, s.px, s.py, s.pz, vcom, s.wU, rollI, tdist, iF, iR, padIx, padIz))
       if stale >= C.STALE_LOOPS and burn and alt < 15 then
         log(("LANDED(stale) alt=%.2f tdist=%.2f tilt=%.1f"):format(alt, tdist, s.tilt))
         return endFlight("stale", tdist, pA, kT)
@@ -750,6 +761,7 @@ local function run()
   end
 end
 
+closeFlaps()   -- flaps: one press at the start of the landing script
 local ok, err = pcall(run)
 if not ok then log("ERROR: " .. tostring(err)) end
 allZero()
